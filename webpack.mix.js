@@ -2,12 +2,14 @@ let mix = require('laravel-mix');
 
 
 mix
-    .js('src/main.js', 'dist/')
+    .sass('src/scss/main.scss', 'dist/css')
+    .js('src/js/main.js', 'dist/js')
     .browserSync({
         files: [
-            'dist/*.*',
+            'dist/**/*.*',
             '*.html'
         ],
+        https: true,
         server: true,
         notify: false,
         open: false,

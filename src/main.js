@@ -1,1 +1,0 @@
-var loader = new THREE.OBJLoader();
