@@ -115,7 +115,7 @@ function createLight() {
 
 function createMaterial() {
     gold = new MeshStandardMaterial();
-    gold.color = new Color(0xffd100);
+    gold.color = new Color(0xffd1aa);
     gold.roughness = materials.gold.roughness;
     gold.metalness = materials.gold.metalness;
 
