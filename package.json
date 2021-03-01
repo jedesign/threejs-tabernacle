@@ -18,6 +18,6 @@
     "vue-template-compiler": "^2.6.10"
   },
   "dependencies": {
-    "three": "^0.107.0"
+    "three": "^0.125.0"
   }
 }
