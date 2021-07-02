@@ -11,7 +11,6 @@ import {
 } from 'three';
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
-import {Fire} from "three/examples/jsm/objects/Fire";
 
 let scene, camera, renderer, loader, ambientLight, pointLight1, pointLight2, gold, wax, wick, controls,
     menorah,
@@ -104,13 +103,13 @@ function createLight() {
     pointLight2.position.y = 1000;
     scene.add(pointLight2);
 
-    createFlame(0, 69.2);
-    createFlame(6.3, 69.2);
-    createFlame(12.6, 69.2);
-    createFlame(18.9, 69.2);
-    createFlame(-6.3, 69.2);
-    createFlame(-12.6, 69.2);
-    createFlame(-18.9, 69.2);
+    // createFlame(0, 69.2);
+    // createFlame(6.3, 69.2);
+    // createFlame(12.6, 69.2);
+    // createFlame(18.9, 69.2);
+    // createFlame(-6.3, 69.2);
+    // createFlame(-12.6, 69.2);
+    // createFlame(-18.9, 69.2);
 }
 
 function createMaterial() {
