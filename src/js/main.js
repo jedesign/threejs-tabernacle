@@ -9,12 +9,13 @@ import {
     MeshPhysicalMaterial,
     MeshStandardMaterial,
     TextureLoader,
-    Vector3, PlaneBufferGeometry, Texture
+    CubeTextureLoader,
+    Vector3, PlaneBufferGeometry, Texture, MeshBasicMaterial
 } from 'three';
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
 
-let scene, camera, renderer, loader, ambientLight, pointLight1, pointLight2, gold, wax, wick, controls,
+let scene, camera, renderer, envLoader, loader, ambientLight, pointLight1, env, textureCube, pointLight2, gold, wax, wick, controls,
     menorah,
     materials = {
         gold: {
@@ -35,6 +36,15 @@ let scene, camera, renderer, loader, ambientLight, pointLight1, pointLight2, gol
     settings = {
         ambientIntensity: 0.2,
     };
+
+    envLoader = new CubeTextureLoader();
+    envLoader.setPath( '/assets/envmap/')
+    textureCube = envLoader.load( [
+        'px.png', 'nx.png',
+        'py.png', 'ny.png',
+        'pz.png', 'nz.png'
+    ] );
+    
 
 function addAxesHelper() {
     let axes = new AxesHelper(10);
@@ -121,7 +131,7 @@ function createLight() {
 }
 
 function createMaterial() {
-    gold = new MeshStandardMaterial();
+    gold = new MeshPhysicalMaterial();
     gold.color = new Color(materials.gold.color);
     gold.roughness = materials.gold.roughness;
     gold.reflectivity  = materials.gold.reflectivity;
@@ -138,6 +148,11 @@ function createMaterial() {
     wax.color = new Color(0xfff2cf);
     wax.roughness = materials.wax.roughness;
     wax.metalness = materials.wax.metalness;
+
+    env = new MeshBasicMaterial();
+    env.color = 0xffffff;
+    env.envMap = textureCube;
+
 
 
     menorah.children.map(function (materialGroup) {
