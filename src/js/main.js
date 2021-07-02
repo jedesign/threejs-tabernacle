@@ -1,30 +1,50 @@
 import {
-    Scene,
-    AxesHelper,
-    PerspectiveCamera,
-    WebGLRenderer,
-    Color,
     AmbientLight,
-    PointLight,
+    AxesHelper,
+    BackSide,
+    Clock,
+    Color,
+    FrontSide,
+    Math,
+    Mesh,
     MeshPhysicalMaterial,
     MeshStandardMaterial,
+    PerspectiveCamera,
+    PointLight,
+    Scene,
+    ShaderMaterial,
+    SphereBufferGeometry,
+    WebGLRenderer,
     TextureLoader,
     CubeTextureLoader,
-    Vector3, PlaneBufferGeometry, Texture, MeshBasicMaterial
+    Vector3, PlaneBufferGeometry, Texture, MeshBasicMaterial, CubeTexture
 } from 'three';
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
+import {randFloat} from "three/src/math/MathUtils";
 
-let scene, camera, renderer, envLoader, loader, ambientLight, pointLight1, env, textureCube, pointLight2, gold, wax, wick, controls,
+const clock = new Clock();
+let scene, camera, renderer, env, envLoader, loader, textureCube, ambientLight, pointLight1, pointLight2, gold, wax, wick, controls,
     menorah,
+    flameMaterials = [],
+    time = 0,
+    timeOffsets = [
+        0,
+        randFloat(0.5, 3),
+        randFloat(0.5, 3),
+        randFloat(0.5, 3),
+        randFloat(0.5, 3),
+        randFloat(0.5, 3),
+        randFloat(0.5, 3),
+    ],
     materials = {
         gold: {
-            reflectivity: 1,
-            roughness: 0,
+            reflectivity: 0,
+            roughness: 0.1,
             color: 0xFFDF34,
             clearcoat: 1,
-            clearcoatRoughness: 0.0,
-            ior: 2.3,
+            clearcoatRoughness: 1,
+            ior: 1.8,
             metalness: 0.3,
 
         },
@@ -53,7 +73,7 @@ function addAxesHelper() {
 
 function createScene() {
     scene = new Scene();
-    scene.background = new Color(0x2b3134);
+    scene.background = new Color(0x2b3134) //textureCube;
 }
 
 function createCamera() {
@@ -80,29 +100,99 @@ function createLoader() {
 
 }
 
-function createFlame(x = 0, y = 0) {
-    let fire = new Fire(new PlaneBufferGeometry(5, 5), {
-        debug: false
+function getFlameMaterial(isFrontSide) {
+    let side = isFrontSide ? FrontSide : BackSide;
+    return new ShaderMaterial({
+        uniforms: {
+            time: {value: 0}
+        },
+        vertexShader: `
+        uniform float time;
+        varying vec2 vUv;
+        varying float hValue;
+
+        //https://thebookofshaders.com/11/
+        // 2D Random
+        float random (in vec2 st) {
+            return fract(sin(dot(st.xy,
+                                 vec2(12.9898,78.233)))
+                         * 43758.5453123);
+        }
+
+        // 2D Noise based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (in vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            // Smooth Interpolation
+
+            // Cubic Hermine Curve.  Same as SmoothStep()
+            vec2 u = f*f*(3.0-2.0*f);
+            // u = smoothstep(0.,1.,f);
+
+            // Mix 4 coorners percentages
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        void main() {
+          vUv = uv;
+          vec3 pos = position;
+
+          pos *= vec3(0.8, 2, 0.725);
+          hValue = position.y;
+          //float sinT = sin(time * 2.) * 0.5 + 0.5;
+          float posXZlen = length(position.xz);
+
+          pos.y *= 1. + (cos((posXZlen + 0.25) * 3.1415926) * 0.25 + noise(vec2(0, time)) * 0.125 + noise(vec2(position.x + time, position.z + time)) * 0.5) * position.y; // flame height
+
+          pos.x += noise(vec2(time * 2., (position.y - time) * 4.0)) * hValue * 0.0312; // flame trembling
+          pos.z += noise(vec2((position.y - time) * 4.0, time * 2.)) * hValue * 0.0312; // flame trembling
+
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(pos,1.0);
+        }
+      `,
+        fragmentShader: `
+        varying float hValue;
+        varying vec2 vUv;
+
+        // honestly stolen from https://www.shadertoy.com/view/4dsSzr
+        vec3 heatmapGradient(float t) {
+          return clamp((pow(t, 1.5) * 0.8 + 0.2) * vec3(smoothstep(0.0, 0.35, t) + t * 0.5, smoothstep(0.5, 1.0, t), max(1.0 - t * 1.7, t * 7.0 - 6.0)), 0.0, 1.0);
+        }
+
+        void main() {
+          float v = abs(smoothstep(0.0, 0.4, hValue) - 1.);
+          float alpha = (1. - v) * 0.99; // bottom transparency
+          alpha -= 1. - smoothstep(1.0, 0.97, hValue); // tip transparency
+          gl_FragColor = vec4(heatmapGradient(smoothstep(0.0, 0.3, hValue)) * vec3(0.95,0.95,0.4), alpha) ;
+          gl_FragColor.rgb = mix(vec3(0,0,1), gl_FragColor.rgb, smoothstep(0.0, 0.3, hValue)); // blueish for bottom
+          gl_FragColor.rgb += vec3(1, 0.9, 0.5) * (1.25 - vUv.y); // make the midst brighter
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.66, 0.32, 0.03), smoothstep(0.95, 1., hValue)); // tip
+        }
+      `,
+        transparent: true,
+        side: side
     });
-    fire.clearSources();
-    fire.addSource(0.5, 0.1, 0.1, 1.0, 0.0, 1.0);
-    fire.color1.set(0xffffff);
-    fire.color2.set(0xffa000);
-    fire.color3.set(0x2b3134);
-    fire.windVector.x = 0;
-    fire.windVector.y = 0.5;
-    fire.burnRate = 2;
-    fire.colorBias = 0.5;
-    fire.diffuse = 1.33;
-    fire.expansion = 0.0;
-    fire.swirl = 0;
-    fire.drag = 0;
-    fire.airSpeed = 8.0;
-    fire.speed = 500.0;
-    fire.massConservation = false;
-    fire.position.x = x;
-    fire.position.y = y;
-    scene.add(fire);
+}
+
+function flame(isFrontSide, x, y, z) {
+    let flameGeo = new SphereBufferGeometry(0.5, 32, 32);
+    flameGeo.translate(0, 0.5, 0);
+    let flameMat = getFlameMaterial(true);
+    flameMaterials.push(flameMat);
+    let flame = new Mesh(flameGeo, flameMat);
+    flame.position.set(x, y, z);
+    flame.rotation.y = Math.degToRad(-45);
+    scene.add(flame);
 }
 
 function createLight() {
@@ -121,13 +211,26 @@ function createLight() {
     pointLight2.position.y = 1000;
     scene.add(pointLight2);
 
-    // createFlame(0, 69.2);
-    // createFlame(6.3, 69.2);
-    // createFlame(12.6, 69.2);
-    // createFlame(18.9, 69.2);
-    // createFlame(-6.3, 69.2);
-    // createFlame(-12.6, 69.2);
-    // createFlame(-18.9, 69.2);
+    // flame(false, 0, 66.6, 0);
+    flame(true, 0, 66.6, 0);
+
+    // flame(false, 6.3, 66.6, 0);
+    flame(true, 6.3, 66.6, 0);
+
+    // flame(false, 12.6, 66.6, 0);
+    flame(true, 12.6, 66.6, 0);
+
+    // flame(false, 18.9, 66.6, 0);
+    flame(true, 18.9, 66.6, 0);
+
+    // flame(false, -6.3, 66.6, 0);
+    flame(true, -6.3, 66.6, 0);
+
+    // flame(false, -12.6, 66.6, 0);
+    flame(true, -12.6, 66.6, 0);
+
+    // flame(false, -18.9, 66.6, 0);
+    flame(true, -18.9, 66.6, 0);
 }
 
 function createMaterial() {
@@ -140,6 +243,7 @@ function createMaterial() {
     gold.clearcoatRoughness = materials.gold.clearcoatRoughness;
     gold.normalMap = new TextureLoader().load( "/assets/blue_concrete_02_normal.png")
     gold.ior = materials.gold.ior;
+    gold.envMap = textureCube
 
     wick = new MeshStandardMaterial();
     wick.color = new Color(0x000000);
@@ -173,7 +277,7 @@ function createOrbitControlls() {
     controls.enableZoom = true;
     controls.enableDamping = true;
     controls.screenSpacePanning = true;
-    controls.target = new Vector3(0, 32, 0);
+    controls.target = new Vector3(0, 33, 0);
 }
 
 function init() {
@@ -193,6 +297,10 @@ function init() {
 function mainLoop() {
     controls.update();
     renderer.clear();
+    time += clock.getDelta();
+    for (let i = 0; i < 7; i++) {
+        flameMaterials[i].uniforms.time.value = time + timeOffsets[i];
+    }
     renderer.render(scene, camera);
     requestAnimationFrame(mainLoop);
 }
