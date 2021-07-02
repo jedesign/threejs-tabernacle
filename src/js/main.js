@@ -6,8 +6,10 @@ import {
     Color,
     AmbientLight,
     PointLight,
+    MeshPhysicalMaterial,
     MeshStandardMaterial,
-    Vector3, PlaneBufferGeometry
+    TextureLoader,
+    Vector3, PlaneBufferGeometry, Texture
 } from 'three';
 import {OBJLoader} from 'three/examples/jsm/loaders/OBJLoader';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
@@ -16,8 +18,14 @@ let scene, camera, renderer, loader, ambientLight, pointLight1, pointLight2, gol
     menorah,
     materials = {
         gold: {
-            metalness: 0.4,
-            roughness: 0.4,
+            reflectivity: 1,
+            roughness: 0,
+            color: 0xFFDF34,
+            clearcoat: 1,
+            clearcoatRoughness: 0.0,
+            ior: 2.3,
+            metalness: 0.3,
+
         },
         wax: {
             metalness: 0,
@@ -114,9 +122,14 @@ function createLight() {
 
 function createMaterial() {
     gold = new MeshStandardMaterial();
-    gold.color = new Color(0xffd1aa);
+    gold.color = new Color(materials.gold.color);
     gold.roughness = materials.gold.roughness;
-    gold.metalness = materials.gold.metalness;
+    gold.reflectivity  = materials.gold.reflectivity;
+    gold.metalness  = materials.gold.metalness;
+    gold.clearcoat = materials.gold.clearcoat;
+    gold.clearcoatRoughness = materials.gold.clearcoatRoughness;
+    gold.normalMap = new TextureLoader().load( "/assets/blue_concrete_02_normal.png")
+    gold.ior = materials.gold.ior;
 
     wick = new MeshStandardMaterial();
     wick.color = new Color(0x000000);
