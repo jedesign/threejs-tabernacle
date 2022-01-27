@@ -17,6 +17,6 @@
     "vue-template-compiler": "^2.6.14"
   },
   "dependencies": {
-    "three": "^0.130.0"
+    "three": "^0.137.0"
   }
 }
